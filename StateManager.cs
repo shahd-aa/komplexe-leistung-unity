@@ -4,6 +4,7 @@ using UnityEngine.Timeline;
 using UnityEngine.Playables;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 
 public class StateManager : MonoBehaviour 
 {
@@ -16,6 +17,11 @@ public class StateManager : MonoBehaviour
     public GameObject questionPanel;
     public GameObject answerOptionsPanel;
     public Button submitButton;
+    
+    // NEW! Question data
+    public QuestionData currentQuestion;
+    public TMP_Text questionText; // The text component that shows question
+    public AnswerSystem answerSystem; // Reference to answer system
     
     // References
     public SubtitleScript subtitleScript;
@@ -30,7 +36,7 @@ public class StateManager : MonoBehaviour
     
     void Start()
     {
-        // Get all answer options from the container
+        // Get all answer options
         foreach (Transform child in answerOptionsPanel.transform)
         {
             answerOptions.Add(child.gameObject);
@@ -73,24 +79,27 @@ public class StateManager : MonoBehaviour
     
     IEnumerator ShowQuizSequence()
     {
-        // Show quiz panel (overlay)
+        // Show quiz panel
         quizPanel.SetActive(true);
         
-        // Hide everything inside initially
+        // Hide everything initially
         questionPanel.SetActive(false);
         answerOptionsPanel.SetActive(false);
         submitButton.gameObject.SetActive(false);
         
+        // NEW! Load question data into UI
+        LoadQuestionData();
+        
         // Small delay
         yield return new WaitForSeconds(0.5f);
         
-        // POP! Question appears
+        // Show question
         questionPanel.SetActive(true);
         
-        // Wait a moment
+        // Wait
         yield return new WaitForSeconds(0.8f);
         
-        // Make container visible
+        // Show container
         answerOptionsPanel.SetActive(true);
         
         // Hide all options first
@@ -99,14 +108,55 @@ public class StateManager : MonoBehaviour
             option.SetActive(false);
         }
         
-        // POP! Show options one by one
+        // Show options one by one
         foreach (GameObject option in answerOptions)
         {
             option.SetActive(true);
             yield return new WaitForSeconds(delayBetweenAnswerOptions);
         }
         
-        // Show submit button
+        // Show submit
         submitButton.gameObject.SetActive(true);
+    }
+    
+    // Load question data into UI
+    void LoadQuestionData()
+    {
+        // Set question text
+        questionText.text = currentQuestion.questionText;
+        
+        // Set answer button texts
+        for (int i = 0; i < currentQuestion.answers.Count; i++)
+        {
+            // Get the button
+            GameObject buttonObj = answerOptions[i];
+            
+            // Find the Text (TMP) child
+            TMP_Text buttonText = buttonObj.GetComponentInChildren<TMP_Text>();
+            
+            // Set the text
+            if (buttonText != null)
+            {
+                buttonText.text = currentQuestion.answers[i];
+            }
+        }
+        
+        // Tell AnswerSystem which answer is correct
+        answerSystem.correctIndex = currentQuestion.correctAnswerIndex;
+    }
+    
+    // Called by AnswerSystem when answer is submitted
+    public void OnAnswerResult(bool isCorrect)
+    {
+        if (isCorrect)
+        {
+            Debug.Log("CORRECT! " + currentQuestion.correctFeedback);
+            // TODO: Show feedback panel with Next button
+        }
+        else
+        {
+            Debug.Log("WRONG! " + currentQuestion.wrongFeedback);
+            // TODO: Show feedback panel with Retry button
+        }
     }
 }
