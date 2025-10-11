@@ -13,6 +13,41 @@
 <li> 2: "die Trägheit der Kisse" ← CORRECT! </li>
 <li> 3: "die Trägheit des Autos" </li>
 
+<h2> Add Scripts to GameObjects </h2>
+-> Create GameObject "GameManager": <br>
+-> Add Component → StateManager <br>
+-> Add Component → AnswerSystem <br>
+
+<br>
+<i> Assign StateManager fields: </i> 
+<br> <br>
+-> Title Panel: drag TitlePanel <br>
+-> Subtitle Panel: drag SubtitlePanel <br>
+-> Quiz Panel: drag QuizPanel <br>
+-> Question Panel: drag QuestionPanel <br>
+-> Answer Options Panel: drag AnswerOptionsPanel <br>
+-> Submit Button: drag SubmitButton <br>
+-> Current Question: drag your Level01_Question asset! <br>
+-> Question Text: drag QuestionText (TMP) <br>
+-> Answer System: drag the GameManager itself (it has AnswerSystem on it) <br>
+-> Subtitle Script: drag TimelineManager <br>
+-> Timeline: drag the PlayableDirector component <br>
+
+<br>
+<i> Assign AnswerSystem fields: </i> 
+<br> <br>
+-> Answer Options Panel: drag AnswerOptionsPanel <br>
+-> State Manager: drag GameManager (it has StateManager on it) <br>
+-> Correct Index: DON'T SET THIS! StateManager sets it automatically <br>
+-> Set your colors (or leave defaults) <br>
+
+<h2> submit button </h2>
+-> Select SubmitButton <br>
+-> In Button component, find "On Click ()" <br>
+-> Click + <br>
+-> Drag GameManager into object field <br>
+-> Dropdown: AnswerSystem → CheckAnswer() <br>
+
 </html>
 
 # scene hierarchy
