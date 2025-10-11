@@ -14,3 +14,23 @@
 <li> 3: "die Trägheit des Autos" </li>
 
 </html>
+
+# scene hierarchy
+
+- **Scene**
+    - **TimelineManager**
+        - PlayableDirector
+        - SubtitleScript
+    - **Canvas**
+        - TitlePanel
+        - SubtitlePanel
+        - **QuizPanel**
+            - **QuestionPanel**
+                - `QuestionText` _(TextMeshPro)_
+            - **AnswerOptionsPanel**
+                - `AnswerOption1` _(Button with Text child)_
+                - `AnswerOption2`
+                - `AnswerOption3`
+                - `AnswerOption4`
+            - `SubmitButton`
+    - `GameManager` _(empty GameObject)_
