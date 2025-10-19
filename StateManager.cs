@@ -195,21 +195,26 @@ public class StateManager : MonoBehaviour
     }
 
     void Shuffle()
+{
+    for (int i = currentQuestion.answers.Count - 1; i > 1; i--)
     {
-      for (i = currentQuestion.answers.Count - 1; i > 1; i--)
-      {
-        foreach (currentQuestion.answers[i])
+        // Generate random number
+        randomNumber = Random.Range(0, i + 1);
+        
+        // Check and update correct answer index
+        if (currentQuestion.correctAnswerIndex == i)
         {
-          randomNumber = Random.Range(0, i + 1);
-          if (currentQuestion.correctAnswerIndex == i)
-          {
-            currentQuestion.correctAnswerIndex == randomIndex;
-          } 
-          else 
-          {
-            currentQuestion.correctAnswerIndex == i;
-          }
+            currentQuestion.correctAnswerIndex = randomNumber;  
+        } 
+        else if (currentQuestion.correctAnswerIndex == randomNumber) 
+        {
+            currentQuestion.correctAnswerIndex = i; 
         }
-      }
+        
+        // Swap the strings
+        string temp = currentQuestion.answers[i]; 
+        currentQuestion.answers[i] = currentQuestion.answers[randomNumber];
+        currentQuestion.answers[randomNumber] = temp;
     }
+}
 }
