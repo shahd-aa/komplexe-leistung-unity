@@ -12,13 +12,21 @@ public class StateManager : MonoBehaviour
     public GameObject titlePanel;
     public GameObject subtitlePanel;
     public GameObject quizPanel;
+    // THIS IS NEW ↓
+    public GameObject feedbackPanel;
     
     // Quiz elements
     public GameObject questionPanel;
     public GameObject answerOptionsPanel;
     public Button submitButton;
+    // THIS IS NEW ↓
+    public GameObject characterPanel;
+    public TMP_Text feedbackText;
+    public TMP_Text explanationText;
+    public Button nextButton;
+    // animator reference here later
     
-    // NEW! Question data
+    // Question data
     public QuestionData currentQuestion;
     public TMP_Text questionText; // The text component that shows question
     public AnswerSystem answerSystem; // Reference to answer system
@@ -52,6 +60,8 @@ public class StateManager : MonoBehaviour
         titlePanel.SetActive(false);
         subtitlePanel.SetActive(false);
         quizPanel.SetActive(false);
+        // THIS IS NEW ↓
+        feedbackPanel.SetActive(false);
     }
     
     IEnumerator TitleScreenSequence() 
@@ -148,13 +158,27 @@ public class StateManager : MonoBehaviour
     // Called by AnswerSystem when answer is submitted
     public void OnAnswerResult(bool isCorrect)
     {
+    // THIS IS NEW ↓
+      submitButton.SetActive(false);
+      feedbackPanel.SetActive(true);
         if (isCorrect)
         {
+            feedbackText.text = currentQuestion.wrongFeedback;
+            explanationText.text = currentQuestion.explanation;
+            // trigger animation
+            nextButton.SetActive(true);
             Debug.Log("CORRECT! " + currentQuestion.correctFeedback);
             // TODO: Show feedback panel with Next button
         }
         else
         {
+            feedbackText.text = currentQuestion.wrongFeedback;
+            explanationText.text = "Correct Answer: ${currentQuestion.correctAnswerIndex}" + currentQuestion.explanation;
+            // trigger animation
+            submitButton.SetActive(true);
+            submitButton.text = "Retry";
+            submitButton.onClick.RemoveAllListeners();
+            submitButton.onClick.AddListener(onRetry);
             Debug.Log("WRONG! " + currentQuestion.wrongFeedback);
             // TODO: Show feedback panel with Retry button
         }
