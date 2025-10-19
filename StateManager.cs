@@ -41,6 +41,7 @@ public class StateManager : MonoBehaviour
     
     // Private
     private List<GameObject> answerOptions = new List<GameObject>();
+    private int randomNumber;
     
     void Start()
     {
@@ -182,5 +183,33 @@ public class StateManager : MonoBehaviour
             Debug.Log("WRONG! " + currentQuestion.wrongFeedback);
             // TODO: Show feedback panel with Retry button
         }
+    }
+    void onRetry()
+    {
+      feedbackPanel.SetActive(false);
+      submitButton.text = "Submit";
+      submitButton.onClick.RemoveAllListeners();
+      submitButton.onClick.AddListener(CheckAnswer);
+      submitButton.SetActive(true);
+      Shuffle()
+    }
+
+    void Shuffle()
+    {
+      for (i = currentQuestion.answers.Count - 1; i > 1; i--)
+      {
+        foreach (currentQuestion.answers[i])
+        {
+          randomNumber = Random.Range(0, i + 1);
+          if (currentQuestion.correctAnswerIndex == i)
+          {
+            currentQuestion.correctAnswerIndex == randomIndex;
+          } 
+          else 
+          {
+            currentQuestion.correctAnswerIndex == i;
+          }
+        }
+      }
     }
 }
