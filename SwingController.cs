@@ -9,19 +9,24 @@ public class SwingController : MonoBehaviour
     public HingeJoint hinge;       // hinge joint on the bob
     public Slider slider;          // slider (0..maxPush)
     public TextMeshProUGUI sliderText;
-    public HingeJoint otherHinge;
+    public SwingController otherSwing;
 
     [Header("Manual Values")]
     public float L; // rope length
+    public bool IsSynced = false;
 
     [Header("Tuning")]
     public float tweakFactor = 1f;      // for slider value
     public float deviationDeg = 8f;      // how close to vertical to count as "bottom" (= 0)
-    public float minAngularVelocity = 0.5f;// require some motion to push
+    public float minAngularVelocity = 0f;// require some motion to push
     public float pushDuration = 0.06f;     // apply force over this many fixed updates
     public float cooldown = 0.15f;      // min time between pushes
     public float maxAngularVelocity = 50f;
+
+    [Header("Debug")]
     public float angVel;
+    public Vector3 hingeAxisWorld;
+    public bool isVelocitySynced;
 
     // internal
     private float pushTimer = 0f;
@@ -42,7 +47,7 @@ public class SwingController : MonoBehaviour
         prevAngle = hinge.angle;
 
         rb.angularVelocity = hinge.transform.TransformDirection(hinge.axis) * 0.6f; // small initial speed
-        
+
         m = rb.mass;
     }
 
@@ -78,22 +83,51 @@ public class SwingController : MonoBehaviour
         if (framesLeftToPush > 0)
         {
             // compute torque magnitude from slider
-            float sliderValue = slider != null ? slider.value : 0f
+            float sliderValue = slider != null ? slider.value : 0f;
 
-            // moment of inertia: I = m * L^2
-            float momentOfInertia = m * L * L;
-            
-            // torque calculation
-            float torque = sliderValue * tweakFactor * pushSign * momentOfInertia;
+            // moment of inertia: I = m * L²
+            float momentOfInertia = m * (L * L);
 
-            Vector3 hingeAxisWorld = hinge.transform.TransformDirection(hinge.axis);
+            // torque calculation: t = I * a , a = slider value
+            float torque = sliderValue * momentOfInertia * tweakFactor * pushSign;
 
-            // apply torque 
+            hingeAxisWorld = hinge.transform.TransformDirection(hinge.axis);
+
+            // apply torque. ForceMode.Force for smooth continuous push
             rb.AddTorque(hingeAxisWorld * torque, ForceMode.Force);
 
             framesLeftToPush--;
         }
 
         prevAngle = angle;
+
+        if (otherSwing != null && slider.value != 0)
+        {
+            // only run sync if this swing is lighter and slider is double the other
+            bool isLightDouble = (m < otherSwing.m) && (slider != null && otherSwing.slider != null) && Mathf.Approximately(slider.value, otherSwing.slider.value * 2f);
+
+            if (isLightDouble)
+            {
+                float velError = angVel - otherSwing.angVel;
+
+                float correctiveGain = 0.05f; // smooth factor
+                float correctiveTorque = velError * m * (L * L) * correctiveGain;
+
+                Vector3 otherHingeAxis = otherSwing.hinge.transform.TransformDirection(otherSwing.hinge.axis);
+                otherSwing.rb.AddTorque(otherHingeAxis * correctiveTorque, ForceMode.Force);
+
+                isVelocitySynced = Mathf.Abs(velError) < 1f;
+            }
+        }
+        else
+        {
+            isVelocitySynced = false;
+        }
+    }
+
+    public void ResetInternalState()
+    {
+        cooldownTimer = 0;
+        prevAngle = 0;
     }
 }
