@@ -79,7 +79,7 @@ public class SwingController : MonoBehaviour
         if (framesLeftToPush > 0)
         {
             // compute torque magnitude from slider
-            float sliderValue = slider != null ? slider.value : 0f; // expected range maybe 0..X
+            float sliderValue = slider != null ? slider.value : 0f
 
             // torque calculation
             float inertiaFactor = (m * L * L) / referenceInertia;
@@ -87,7 +87,7 @@ public class SwingController : MonoBehaviour
 
             Vector3 hingeAxisWorld = hinge.transform.TransformDirection(hinge.axis);
 
-            // apply torque. ForceMode.Force for smooth continuous push
+            // apply torque 
             rb.AddTorque(hingeAxisWorld * torque, ForceMode.Acceleration);
 
             framesLeftToPush--;
