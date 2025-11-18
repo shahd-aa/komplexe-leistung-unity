@@ -13,7 +13,6 @@ public class SwingController : MonoBehaviour
 
     [Header("Manual Values")]
     public float L; // rope length
-    public float referenceInertia = 1f;
 
     [Header("Tuning")]
     public float tweakFactor = 1f;      // for slider value
@@ -81,14 +80,16 @@ public class SwingController : MonoBehaviour
             // compute torque magnitude from slider
             float sliderValue = slider != null ? slider.value : 0f
 
+            // moment of inertia: I = m * L^2
+            float momentOfInertia = m * L * L;
+            
             // torque calculation
-            float inertiaFactor = (m * L * L) / referenceInertia;
-            float torque = sliderValue * tweakFactor * pushSign * inertiaFactor;
+            float torque = sliderValue * tweakFactor * pushSign * momentOfInertia;
 
             Vector3 hingeAxisWorld = hinge.transform.TransformDirection(hinge.axis);
 
             // apply torque 
-            rb.AddTorque(hingeAxisWorld * torque, ForceMode.Acceleration);
+            rb.AddTorque(hingeAxisWorld * torque, ForceMode.Force);
 
             framesLeftToPush--;
         }
