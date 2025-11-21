@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
 
 public class SwingController : MonoBehaviour
 {
@@ -10,6 +11,7 @@ public class SwingController : MonoBehaviour
     public Slider slider;          // slider (0..maxPush)
     public TextMeshProUGUI sliderText;
     public SwingController otherSwing;
+    public StateManager3 stateManager;
 
     [Header("Manual Values")]
     public float L; // rope length
@@ -42,7 +44,11 @@ public class SwingController : MonoBehaviour
         if (hinge == null) hinge = GetComponent<HingeJoint>();
 
         if (slider != null)
-            slider.onValueChanged.AddListener((v) => { sliderText.text = v.ToString("0") + " N"; });
+            slider.onValueChanged.AddListener((v) => { 
+                sliderText.text = v.ToString("0") + " N"; 
+                StartCoroutine(CheckForces());
+                otherSwing.StartCoroutine(otherSwing.CheckForces());
+                });
 
         prevAngle = hinge.angle;
 
@@ -66,8 +72,8 @@ public class SwingController : MonoBehaviour
         bool insideDeviation = absAngle <= deviationDeg;
         // check if angle passed the bottom: if sign changed and if previous and current angle are in the deviaton window
         bool crossedThrough = Mathf.Sign(prevAngle) != Mathf.Sign(angle) || (Mathf.Abs(prevAngle) < deviationDeg && Mathf.Abs(angle) < deviationDeg);
-        // velocity should be bigger than min in order to push
-        bool IsMoving = Mathf.Abs(angVel) >= minAngularVelocity;
+        // nmove even at rest
+        bool IsMoving = Mathf.Abs(angVel) >= minAngularVelocity || slider.value > 0f;
 
         // trigger push when inside deviation window, moving and cooldown expired
         if (insideDeviation && IsMoving && cooldownTimer == 0f && crossedThrough && Mathf.Abs(angVel) < maxAngularVelocity)
@@ -129,5 +135,21 @@ public class SwingController : MonoBehaviour
     {
         cooldownTimer = 0;
         prevAngle = 0;
+    }
+
+    IEnumerator CheckForces()
+    {
+        if (otherSwing.m > m)
+        {
+            if (Mathf.Approximately(slider.value, otherSwing.slider.value * 2))
+            {
+                yield return new WaitForSeconds(8f);
+                stateManager.ShowFeedback();
+            }
+            else
+            {
+                yield return new WaitForSeconds(8f);
+            }
+        }
     }
 }
