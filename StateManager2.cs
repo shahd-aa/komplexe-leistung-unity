@@ -1,6 +1,3 @@
-// 10.11.2025 AI-Tag
-// This was created with the help of Assistant, a Unity Artificial Intelligence product.
-
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Timeline;
@@ -15,13 +12,13 @@ using UnityEngine.SceneManagement;
 public class StateManager2 : MonoBehaviour
 {
     // Main panels
-    public GameObject titlePanel;
+    [Header("Main Panels")] public GameObject titlePanel;
     public GameObject subtitlePanel;
     public GameObject quizPanel;
     public GameObject feedbackPanel;
 
     // Quiz elements
-    public GameObject questionPanel;
+    [Header("Quiz Elements")] public GameObject questionPanel;
     public GameObject answerOptionsPanel;
     public GameObject characterPanel;
     public Animator characterAnimator;
@@ -33,268 +30,355 @@ public class StateManager2 : MonoBehaviour
     public Button retryButton;
 
     // Question data
-    public QuestionData currentQuestion;
+    [Header("Question Data")] public QuestionData currentQuestion;
     public TMP_Text questionText; // The text component that shows question
     public AnswerSystem answerSystem; // Reference to answer system
 
     // References
-    public SubtitleScript subtitleScript;
+    [Header("References")] public SubtitleScript subtitleScript;
     public QuizIntroAnimation introAnim;
     public GameObject lettersPanel;
     public PlayableDirector timeline;
     public GameObject blurImage;
     public GameObject confettiRight;
     public GameObject confettiLeft;
+    public GameObject arrowsPanel;
 
     // Cinemachine
-    public CinemachineCamera followCamera;
+    [Header("Cinemachine")] public CinemachineCamera followCamera;
     public CinemachineCamera frontCamera;
+    public CinemachineCamera endCamera;
     public CinemachineBrain mainCameraBrain;
 
     // Character
-    public GameObject characterUpset;
+    [Header("Character")] public GameObject characterUpset;
     public GameObject characterHappy;
 
     // Settings
-    public float titleDisplayTime;
-    public float delayBetweenAnswerOptions;
+    [Header("Settings")] public float titleDisplayTime = 2f;
+    public float delayBetweenAnswerOptions = 0.1f;
     public float scaleX, scaleY;
-    public float tweenDuration;
-    public float scaleUpFactor;
+    public float tweenDuration = 0.35f;
+    public float scaleUpFactor = 1.15f;
     private Vector3 originalSize;
 
     // Private
-    private List<GameObject> answerOptions = new List<GameObject>();
-    private List<RectTransform> answerOptionsRects = new List<RectTransform>();
-    private int randomNumber;
+    private readonly List<GameObject> answerOptions = new List<GameObject>();
+    private readonly List<RectTransform> answerOptionsRects = new List<RectTransform>();
+
+    void Awake()
+    {
+        // sanity warnings for missing references
+        if (answerOptionsPanel == null) Debug.LogWarning("answerOptionsPanel not assigned", this);
+        if (submitButton == null) Debug.LogWarning("submitButton not assigned", this);
+        if (nextButton == null) Debug.LogWarning("nextButton not assigned", this);
+        if (timeline == null) Debug.LogWarning("timeline not assigned", this);
+        if (answerSystem == null) Debug.LogWarning("answerSystem not assigned", this);
+    }
 
     void Start()
     {
-        // Ensure cameras and timeline are properly initialized
-        followCamera.gameObject.SetActive(false);
-        frontCamera.gameObject.SetActive(false);
-        mainCameraBrain.enabled = false;
+        // safe camera setup
+        if (followCamera != null) followCamera.gameObject.SetActive(false);
+        if (frontCamera != null) frontCamera.gameObject.SetActive(false);
+        if (mainCameraBrain != null) mainCameraBrain.enabled = false;
 
-        // Get all answer options
-        foreach (Transform child in answerOptionsPanel.transform)
-        {
-            answerOptions.Add(child.gameObject);
-        }
-        foreach (GameObject answerOption in answerOptions)
-        {
-            Vector3 fullScale = answerOption.transform.localScale;
-            scaleX = fullScale.x;
-            scaleY = fullScale.y;
-            originalSize = fullScale;
-
-            RectTransform rect = answerOption.GetComponent<RectTransform>();
-            if (rect != null)
-            {
-                answerOptionsRects.Add(rect);
-            }
-        }
+        // populate answers safely
+        PopulateAnswerOptions();
 
         // Setup
         DisableBackgroundRaycasts();
         HideAllPanels();
-        StartCoroutine(TitleScreenSequence());
-        nextButton.onClick.AddListener(OnNextQuestion);
+
+        // attach next
+        if (nextButton != null)
+        {
+            nextButton.onClick.RemoveAllListeners();
+            nextButton.onClick.AddListener(LoadNextScene);
+        }
+
+        // start sequence
+        if (titlePanel != null && timeline != null)
+            StartCoroutine(TitleScreenSequence());
+        else
+            StartCoroutine(ShowQuizSequence());
+    }
+
+    void OnDestroy()
+    {
+        if (timeline != null)
+            timeline.stopped -= OnCutsceneEnded;
+
+        if (nextButton != null) nextButton.onClick.RemoveAllListeners();
+        if (submitButton != null) submitButton.onClick.RemoveAllListeners();
+        if (retryButton != null) retryButton.onClick.RemoveAllListeners();
     }
 
     void HideAllPanels()
     {
-        titlePanel.SetActive(false);
-        subtitlePanel.SetActive(false);
-        quizPanel.SetActive(false);
-        feedbackPanel.SetActive(false);
-        characterPanel.SetActive(false);
-        confettiRight.SetActive(false);
-        confettiLeft.SetActive(false);
+        SetActiveSafe(titlePanel, false);
+        SetActiveSafe(subtitlePanel, false);
+        SetActiveSafe(quizPanel, false);
+        SetActiveSafe(feedbackPanel, false);
+        SetActiveSafe(characterPanel, false);
+        SetActiveSafe(confettiRight, false);
+        SetActiveSafe(confettiLeft, false);
+        SetActiveSafe(arrowsPanel, false);
     }
 
     IEnumerator TitleScreenSequence()
     {
-        timeline.time = 0;
-        timeline.Pause();
-
-        titlePanel.SetActive(true);
-        yield return new WaitForSeconds(titleDisplayTime);
-        titlePanel.SetActive(false);
+        if (timeline != null)
+        {
+            timeline.time = 0;
+            timeline.Pause();
+        }
+        SetActiveSafe(titlePanel, true);
+        yield return new WaitForSeconds(Mathf.Max(0f, titleDisplayTime));
+        SetActiveSafe(titlePanel, false);
         StartCutscene();
     }
 
     void StartCutscene()
     {
-        subtitlePanel.SetActive(true);
-        followCamera.gameObject.SetActive(true);
-        frontCamera.gameObject.SetActive(true);
-        mainCameraBrain.enabled = true;
+        bool showSubtitlePanel = true;
 
-        timeline.stopped -= OnCutsceneEnded;
-        timeline.stopped += OnCutsceneEnded;
-        timeline.Play();
+        SetActiveSafe(subtitlePanel, showSubtitlePanel);
+
+        if (followCamera != null) followCamera.gameObject.SetActive(true);
+        if (frontCamera != null) frontCamera.gameObject.SetActive(true);
+        if (mainCameraBrain != null) mainCameraBrain.enabled = true;
+        SetActiveSafe(arrowsPanel, true);
+
+        if (timeline != null)
+        {
+            timeline.stopped -= OnCutsceneEnded;
+            timeline.stopped += OnCutsceneEnded;
+            timeline.Play();
+        }
+        else
+        {
+            StartCoroutine(ShowQuizSequence());
+        }
     }
 
     void OnCutsceneEnded(PlayableDirector pd)
     {
         Debug.Log("CUTSCENE ENDED!");
 
-        //Hold at the last frame
-        pd.time = 0;
-        pd.Pause();
+        if (pd != null)
+        {
+            pd.time = 0; // hold
+            pd.Pause();
+        }
+
+        if (followCamera != null) followCamera.Priority = 0;
+        if (frontCamera != null) frontCamera.Priority = 0;
+        if (endCamera != null) endCamera.Priority = 1;
 
         StartCoroutine(ShowQuizSequence());
     }
 
     IEnumerator ShowQuizSequence()
     {
-        // Delay before popping up the UI 
         yield return new WaitForSeconds(2f);
 
-        subtitlePanel.SetActive(false);
+        SetActiveSafe(subtitlePanel, false);
+        SetActiveSafe(quizPanel, true);
 
-        // Show quiz panel
-        quizPanel.SetActive(true);
+        // hide everything initially
+        SetActiveSafe(questionPanel, false);
+        SetActiveSafe(answerOptionsPanel, false);
+        SetActiveSafe(submitButton?.gameObject, false);
+        SetActiveSafe(retryButton?.gameObject, false);
+        SetActiveSafe(blurImage, false);
+        SetActiveSafe(confettiRight, false);
+        SetActiveSafe(confettiLeft, false);
+        SetActiveSafe(characterHappy, false);
+        SetActiveSafe(characterUpset, false);
+        SetActiveSafe(arrowsPanel, false);
 
-        // Hide everything initially
-        questionPanel.SetActive(false);
-        answerOptionsPanel.SetActive(false);
-        submitButton.gameObject.SetActive(false);
-        retryButton.gameObject.SetActive(false);
-        blurImage.SetActive(false);
-        confettiRight.SetActive(false);
-        confettiLeft.SetActive(false);
-        characterHappy.SetActive(false);
-        characterUpset.SetActive(false);
+        if (introAnim != null)
+            yield return StartCoroutine(introAnim.PlayIntroAnimationCoroutine());
 
-        // Letter popup
-        yield return StartCoroutine(introAnim.PlayIntroAnimationCoroutine());
-
-        // Load question data into UI
         LoadQuestionData();
 
-        // Show quiz elements
         RemoveCameraNoise();
-        questionPanel.SetActive(true);
-        answerOptionsPanel.SetActive(true);
-        blurImage.SetActive(true);
+        SetActiveSafe(questionPanel, true);
+        SetActiveSafe(answerOptionsPanel, true);
+        SetActiveSafe(blurImage, true);
 
-        // FIX: Disable raycast on blur image so it doesn't block buttons
-        Image blurImg = blurImage.GetComponent<Image>();
-        if (blurImg != null)
+        // ensure blur doesn't block buttons
+        if (blurImage != null)
         {
-            blurImg.raycastTarget = false;
+            Image blurImg = blurImage.GetComponent<Image>();
+            if (blurImg != null) blurImg.raycastTarget = false;
+            blurImage.transform.SetAsFirstSibling();
         }
 
-        // Move blur to back
-        blurImage.transform.SetAsFirstSibling();
-
-        // Hide all options first
+        // hide all options first
         foreach (GameObject option in answerOptions)
+            SetActiveSafe(option, false);
+
+        // show options one by one from panel children to match hierarchy
+        if (answerOptionsPanel != null)
         {
-            option.SetActive(false);
-        }
-
-        // Show options one by one
-        Transform panelTransform = answerOptionsPanel.transform;
-
-        for (int i = 0; i < panelTransform.childCount; i++)
-        {
-            Transform answerTransform = panelTransform.GetChild(i);
-            GameObject answerOption = answerTransform.gameObject;
-
-            answerOption.SetActive(true);
-
-            // Make button interactable
-            Button btn = answerOption.GetComponent<Button>();
-            if (btn != null)
+            Transform panelTransform = answerOptionsPanel.transform;
+            for (int i = 0; i < panelTransform.childCount; i++)
             {
-                btn.interactable = true;
+                Transform answerTransform = panelTransform.GetChild(i);
+                if (answerTransform == null) continue;
+
+                GameObject answerOption = answerTransform.gameObject;
+                SetActiveSafe(answerOption, true);
+
+                Button btn = answerOption.GetComponent<Button>();
+                if (btn != null) btn.interactable = true;
+
+                RectTransform rect = answerOption.GetComponent<RectTransform>();
+                if (rect != null) PopOut(rect);
+
+                yield return new WaitForSeconds(Mathf.Max(0f, delayBetweenAnswerOptions));
             }
 
-            // Animate the answer option
-            PopOut(answerOption.GetComponent<RectTransform>());
-
-            yield return new WaitForSeconds(delayBetweenAnswerOptions);
+            answerOptionsPanel.transform.SetAsLastSibling();
         }
 
-        // Bring panel to front
-        answerOptionsPanel.transform.SetAsLastSibling();
-
-        // Show submit button
-        submitButton.gameObject.SetActive(true);
-        submitButton.onClick.RemoveAllListeners();
-        submitButton.onClick.AddListener(answerSystem.CheckAnswer);
+        // show submit button and wire safely
+        if (submitButton != null && answerSystem != null)
+        {
+            SetActiveSafe(submitButton.gameObject, true);
+            submitButton.onClick.RemoveAllListeners();
+            submitButton.onClick.AddListener(() => answerSystem.CheckAnswer());
+        }
+        else if (submitButton != null)
+        {
+            Debug.LogWarning("submitButton present but answerSystem is missing - no checks will run", this);
+        }
     }
 
     void PopOut(RectTransform rect)
     {
+        if (rect == null) return;
         Vector3 original = rect.localScale;
-        Vector3 target = original * scaleUpFactor;
-
-        rect.localScale = original; // Ensure starting point
-        rect.DOScale(target, tweenDuration)
+        Vector3 target = original * Mathf.Max(0.01f, scaleUpFactor);
+        rect.localScale = original;
+        rect.DOScale(target, Mathf.Max(0.01f, tweenDuration))
             .OnComplete(() => rect.DOScale(original, 0.5f));
+    }
+
+    // populate answerOptions from panel children safely
+    void PopulateAnswerOptions()
+    {
+        answerOptions.Clear();
+        answerOptionsRects.Clear();
+
+        if (answerOptionsPanel == null)
+        {
+            Debug.LogWarning("answerOptionsPanel is null - cannot populate options", this);
+            return;
+        }
+
+        foreach (Transform child in answerOptionsPanel.transform)
+        {
+            if (child == null || child.gameObject == null) continue;
+            answerOptions.Add(child.gameObject);
+            RectTransform rect = child.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                answerOptionsRects.Add(rect);
+                if (originalSize == Vector3.zero)
+                {
+                    originalSize = rect.localScale;
+                    scaleX = originalSize.x;
+                    scaleY = originalSize.y;
+                }
+            }
+        }
+
+        if (answerOptions.Count == 0)
+            Debug.LogWarning("no answer option children found under answerOptionsPanel", this);
     }
 
     void LoadQuestionData()
     {
-        // Set question text
-        questionText.text = currentQuestion.questionText;
-
-        // Set answer button texts
-        for (int i = 0; i < currentQuestion.answers.Count; i++)
+        if (currentQuestion == null)
         {
-            // Get the button
-            GameObject buttonObj = answerOptions[i];
-
-            // Find the Text (TMP) child
-            TMP_Text buttonText = buttonObj.GetComponentInChildren<TMP_Text>();
-
-            // Set the text
-            if (buttonText)
-            {
-                buttonText.text = currentQuestion.answers[i];
-            }
+            Debug.LogError("currentQuestion is null", this);
+            return;
         }
 
-        // Tell AnswerSystem which answer is correct
-        answerSystem.correctIndex = currentQuestion.correctAnswerIndex;
+        if (currentQuestion.answers == null || currentQuestion.answers.Count == 0)
+        {
+            Debug.LogError("currentQuestion has no answers", this);
+            return;
+        }
+
+        if (questionText != null)
+            questionText.text = currentQuestion.questionText ?? string.Empty;
+
+        int itemsToUse = Mathf.Min(currentQuestion.answers.Count, answerOptions.Count);
+        if (itemsToUse == 0)
+        {
+            Debug.LogError("no UI answer options available to populate", this);
+            return;
+        }
+
+        for (int i = 0; i < itemsToUse; i++)
+        {
+            GameObject buttonObj = answerOptions[i];
+            if (buttonObj == null) continue;
+            TMP_Text buttonText = buttonObj.GetComponentInChildren<TMP_Text>(true);
+            if (buttonText != null)
+                buttonText.text = currentQuestion.answers[i] ?? string.Empty;
+            else
+                Debug.LogWarning($"no TMP_Text on answer option {i}", this);
+        }
+
+        if (answerSystem != null)
+        {
+            answerSystem.correctIndex = Mathf.Clamp(currentQuestion.correctAnswerIndex, 0, Mathf.Max(0, currentQuestion.answers.Count - 1));
+        }
+        else
+        {
+            Debug.LogWarning("answerSystem missing - answer checks won't work", this);
+        }
     }
 
     public void OnAnswerResult(bool isCorrect)
     {
-        TMP_Text submitText = submitButton.GetComponentInChildren<TMP_Text>();
-        submitButton.gameObject.SetActive(false);
-        answerOptionsPanel.gameObject.SetActive(false);
-        questionPanel.SetActive(false);
-        feedbackPanel.SetActive(true);
+        SetActiveSafe(submitButton?.gameObject, false);
+        SetActiveSafe(answerOptionsPanel, false);
+        SetActiveSafe(questionPanel, false);
+        SetActiveSafe(feedbackPanel, true);
 
         if (isCorrect)
         {
-            feedbackText.text = currentQuestion.correctFeedback;
-            explanationText.text = currentQuestion.explanation;
-            characterPanel.SetActive(true);
-            characterHappy.SetActive(true);
-            confettiRight.SetActive(true);
-            confettiLeft.SetActive(true);
-            nextButton.gameObject.SetActive(true);
-            Debug.Log("CORRECT! " + currentQuestion.correctFeedback);
+            if (feedbackText != null) feedbackText.text = currentQuestion?.correctFeedback ?? string.Empty;
+            if (explanationText != null) explanationText.text = currentQuestion?.explanation ?? string.Empty;
+            SetActiveSafe(characterPanel, true);
+            SetActiveSafe(characterHappy, true);
+            SetActiveSafe(confettiRight, true);
+            SetActiveSafe(confettiLeft, true);
+            if (nextButton != null) SetActiveSafe(nextButton.gameObject, true);
+            Debug.Log("CORRECT! " + (currentQuestion?.correctFeedback ?? ""));
         }
         else
         {
-            nextButton.gameObject.SetActive(false);
-            feedbackText.text = currentQuestion.wrongFeedback;
-            explanationText.text = $"Correct Answer: {currentQuestion.correctAnswerIndex + 1}. {currentQuestion.explanation}";
-            characterPanel.SetActive(true);
-            characterUpset.SetActive(true);
+            if (nextButton != null) SetActiveSafe(nextButton.gameObject, false);
+            if (feedbackText != null) feedbackText.text = currentQuestion?.wrongFeedback ?? string.Empty;
+            //if (explanationText != null) explanationText.text = "(explanation placeholder)";
+            SetActiveSafe(characterPanel, true);
+            SetActiveSafe(characterUpset, true);
 
-            submitButton.gameObject.SetActive(false);
-            retryButton.gameObject.SetActive(true);
+            if (retryButton != null)
+            {
+                SetActiveSafe(retryButton.gameObject, true);
+                retryButton.onClick.RemoveAllListeners();
+                retryButton.onClick.AddListener(OnRetry);
+            }
 
-            retryButton.onClick.AddListener(OnRetry);
-
-            Debug.Log("WRONG! " + currentQuestion.wrongFeedback);
+            Debug.Log("WRONG! " + (currentQuestion?.wrongFeedback ?? ""));
         }
     }
 
@@ -302,76 +386,62 @@ public class StateManager2 : MonoBehaviour
     {
         Debug.Log("OnRetry called!");
 
-        // Hide feedback panels
-        feedbackPanel.SetActive(false);
-        characterPanel.SetActive(false);
-        characterHappy.SetActive(false);
-        characterUpset.SetActive(false);
+        SetActiveSafe(feedbackPanel, false);
+        SetActiveSafe(characterPanel, false);
+        SetActiveSafe(characterHappy, false);
+        SetActiveSafe(characterUpset, false);
 
-        // Hide retry button
-        retryButton.gameObject.SetActive(false);
-        retryButton.onClick.RemoveAllListeners();
+        if (retryButton != null)
+        {
+            SetActiveSafe(retryButton.gameObject, false);
+            retryButton.onClick.RemoveAllListeners();
+        }
 
-        // Show quiz elements
-        questionPanel.SetActive(true);
-        answerOptionsPanel.SetActive(true);
+        SetActiveSafe(questionPanel, true);
+        SetActiveSafe(answerOptionsPanel, true);
 
-        // Shuffle answers
         Shuffle();
 
-        // Reset answer system
-        answerSystem.ResetButtons();
+        if (answerSystem != null) answerSystem.ResetButtons();
 
-        // Reload question with shuffled answers
         LoadQuestionData();
 
-        // Show submit button (not retry)
-        submitButton.gameObject.SetActive(true);
-        submitButton.onClick.RemoveAllListeners();
-        submitButton.onClick.AddListener(answerSystem.CheckAnswer);
+        if (submitButton != null && answerSystem != null)
+        {
+            SetActiveSafe(submitButton.gameObject, true);
+            submitButton.onClick.RemoveAllListeners();
+            submitButton.onClick.AddListener(() => answerSystem.CheckAnswer());
+        }
     }
 
     void Shuffle()
     {
-        // store the correct answer value before shuffling
-        string correctAnswer = currentQuestion.answers[currentQuestion.correctAnswerIndex];
+        if (currentQuestion == null || currentQuestion.answers == null || currentQuestion.answers.Count <= 1) return;
 
+        string correctAnswer = currentQuestion.answers[Mathf.Clamp(currentQuestion.correctAnswerIndex, 0, currentQuestion.answers.Count - 1)];
         int n = currentQuestion.answers.Count;
         for (int i = n - 1; i > 0; i--)
         {
             int j = Random.Range(0, i + 1);
-            // swap answers[i] and answers[j]
-            (currentQuestion.answers[i], currentQuestion.answers[j]) =
-                (currentQuestion.answers[j], currentQuestion.answers[i]);
+            (currentQuestion.answers[i], currentQuestion.answers[j]) = (currentQuestion.answers[j], currentQuestion.answers[i]);
         }
 
-        // update correctAnswerIndex after shuffle
-        currentQuestion.correctAnswerIndex = currentQuestion.answers.IndexOf(correctAnswer);
+        currentQuestion.correctAnswerIndex = Mathf.Clamp(currentQuestion.answers.IndexOf(correctAnswer), 0, currentQuestion.answers.Count - 1);
     }
 
     void OnNextQuestion()
     {
-        nextButton.gameObject.SetActive(false);
-        feedbackPanel.SetActive(false);
+        if (nextButton != null) SetActiveSafe(nextButton.gameObject, false);
+        SetActiveSafe(feedbackPanel, false);
         Shuffle();
         StartCoroutine(ShowQuizSequence());
     }
 
-    void OnDestroy()
-    {
-        if (timeline != null)
-        {
-            timeline.stopped -= OnCutsceneEnded;
-        }
-    }
-
     void RemoveCameraNoise()
     {
+        if (followCamera == null) return;
         var perlin = followCamera.GetCinemachineComponent(CinemachineCore.Stage.Noise) as CinemachineBasicMultiChannelPerlin;
-        if (perlin != null)
-        {
-            perlin.enabled = false;
-        }
+        if (perlin != null) perlin.enabled = false;
     }
 
     public void LoadNextScene()
@@ -382,7 +452,6 @@ public class StateManager2 : MonoBehaviour
 
     void DisableBackgroundRaycasts()
     {
-        // Disable raycast on background panels
         if (quizPanel != null)
         {
             Image panelImg = quizPanel.GetComponent<Image>();
@@ -400,5 +469,13 @@ public class StateManager2 : MonoBehaviour
             Image panelImg = questionPanel.GetComponent<Image>();
             if (panelImg != null) panelImg.raycastTarget = false;
         }
+    }
+
+    // small helper
+    void SetActiveSafe(GameObject obj, bool value)
+    {
+        if (obj == null) return;
+        if (obj.activeSelf == value) return;
+        obj.SetActive(value);
     }
 }
