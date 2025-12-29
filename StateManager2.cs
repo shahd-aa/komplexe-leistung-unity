@@ -12,16 +12,18 @@ using UnityEngine.SceneManagement;
 public class StateManager2 : MonoBehaviour
 {
     // Main panels
-    [Header("Main Panels")] public GameObject titlePanel;
+    [Header("Main Panels")]
+    public GameObject titlePanel;
     public GameObject subtitlePanel;
     public GameObject quizPanel;
     public GameObject feedbackPanel;
 
     // Quiz elements
-    [Header("Quiz Elements")] public GameObject questionPanel;
+    [Header("Quiz Elements")]
+    public GameObject questionPanel;
     public GameObject answerOptionsPanel;
     public GameObject characterPanel;
-    public Animator characterAnimator;
+    public GameObject placeholderCharacter;
     public TMP_Text feedbackText;
     public TMP_Text explanationText;
 
@@ -30,12 +32,14 @@ public class StateManager2 : MonoBehaviour
     public Button retryButton;
 
     // Question data
-    [Header("Question Data")] public QuestionData currentQuestion;
+    [Header("Question Data")]
+    public QuestionData currentQuestion;
     public TMP_Text questionText; // The text component that shows question
     public AnswerSystem answerSystem; // Reference to answer system
 
     // References
-    [Header("References")] public SubtitleScript subtitleScript;
+    [Header("References")]
+    public SubtitleScript subtitleScript;
     public QuizIntroAnimation introAnim;
     public GameObject lettersPanel;
     public PlayableDirector timeline;
@@ -45,17 +49,20 @@ public class StateManager2 : MonoBehaviour
     public GameObject arrowsPanel;
 
     // Cinemachine
-    [Header("Cinemachine")] public CinemachineCamera followCamera;
+    [Header("Cinemachine")]
+    public CinemachineCamera followCamera;
     public CinemachineCamera frontCamera;
     public CinemachineCamera endCamera;
     public CinemachineBrain mainCameraBrain;
 
     // Character
-    [Header("Character")] public GameObject characterUpset;
+    [Header("Character")]
+    public GameObject characterUpset;
     public GameObject characterHappy;
 
     // Settings
-    [Header("Settings")] public float titleDisplayTime = 2f;
+    [Header("Settings")]
+    public float titleDisplayTime = 2f;
     public float delayBetweenAnswerOptions = 0.1f;
     public float scaleX, scaleY;
     public float tweenDuration = 0.35f;
@@ -76,7 +83,7 @@ public class StateManager2 : MonoBehaviour
         if (answerSystem == null) Debug.LogWarning("answerSystem not assigned", this);
     }
 
-    void Start()
+    protected virtual void Start()
     {
         // safe camera setup
         if (followCamera != null) followCamera.gameObject.SetActive(false);
@@ -114,7 +121,7 @@ public class StateManager2 : MonoBehaviour
         if (retryButton != null) retryButton.onClick.RemoveAllListeners();
     }
 
-    void HideAllPanels()
+    public void HideAllPanels()
     {
         SetActiveSafe(titlePanel, false);
         SetActiveSafe(subtitlePanel, false);
@@ -130,7 +137,6 @@ public class StateManager2 : MonoBehaviour
     {
         if (timeline != null)
         {
-            timeline.time = 0;
             timeline.Pause();
         }
         SetActiveSafe(titlePanel, true);
@@ -148,6 +154,7 @@ public class StateManager2 : MonoBehaviour
         if (followCamera != null) followCamera.gameObject.SetActive(true);
         if (frontCamera != null) frontCamera.gameObject.SetActive(true);
         if (mainCameraBrain != null) mainCameraBrain.enabled = true;
+        if (placeholderCharacter != null) placeholderCharacter.SetActive(false);
         SetActiveSafe(arrowsPanel, true);
 
         if (timeline != null)
@@ -162,24 +169,37 @@ public class StateManager2 : MonoBehaviour
         }
     }
 
-    void OnCutsceneEnded(PlayableDirector pd)
+    protected virtual void OnCutsceneEnded(PlayableDirector pd)
     {
         Debug.Log("CUTSCENE ENDED!");
 
         if (pd != null)
         {
-            pd.time = 0; // hold
             pd.Pause();
         }
 
-        if (followCamera != null) followCamera.Priority = 0;
-        if (frontCamera != null) frontCamera.Priority = 0;
-        if (endCamera != null) endCamera.Priority = 1;
+        // Manually set camera priorities
+        if (followCamera != null)
+        {
+            followCamera.gameObject.SetActive(false); // Turn it off
+        }
+        if (frontCamera != null)
+        {
+            frontCamera.gameObject.SetActive(false); // Turn it off
+        }
+        if (endCamera != null)
+        {
+            endCamera.gameObject.SetActive(false); // Turn it off
+        }
+        if (placeholderCharacter != null)
+        {
+            placeholderCharacter.SetActive(true);
+        }
 
         StartCoroutine(ShowQuizSequence());
     }
 
-    IEnumerator ShowQuizSequence()
+    public IEnumerator ShowQuizSequence()
     {
         yield return new WaitForSeconds(2f);
 
@@ -257,7 +277,7 @@ public class StateManager2 : MonoBehaviour
         }
     }
 
-    void PopOut(RectTransform rect)
+    public void PopOut(RectTransform rect)
     {
         if (rect == null) return;
         Vector3 original = rect.localScale;
@@ -268,7 +288,7 @@ public class StateManager2 : MonoBehaviour
     }
 
     // populate answerOptions from panel children safely
-    void PopulateAnswerOptions()
+    public void PopulateAnswerOptions()
     {
         answerOptions.Clear();
         answerOptionsRects.Clear();
@@ -450,7 +470,7 @@ public class StateManager2 : MonoBehaviour
         SceneManager.LoadScene(currentSceneIndex + 1);
     }
 
-    void DisableBackgroundRaycasts()
+    public void DisableBackgroundRaycasts()
     {
         if (quizPanel != null)
         {
