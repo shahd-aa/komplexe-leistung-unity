@@ -1,0 +1,43 @@
+using UnityEngine;
+using UnityEngine.Playables;
+
+
+public class GameManager_Lvl5 : MonoBehaviour
+{
+    public Transform sliderAndSpeedometer;
+    public PlayableDirector director;
+
+    // if acceleration is equal, show correct feedback
+
+    void Start()
+    {
+        // takes all level specific UI elements at the start and hides them
+        DisableUIElements(sliderAndSpeedometer);
+
+        director.stopped += OnTimelineFinished;
+    }
+
+    void OnTimelineFinished(PlayableDirector d)
+    {
+        Debug.Log("Timeline finished!");
+        // after timeline is finished, default to the split screen (forever active)
+        
+    }
+
+
+    void DisableUIElements(Transform parentTransform)
+    {
+        foreach (Transform child in parentTransform)
+        {
+            child.gameObject.SetActive(false);
+        }
+    }
+
+    void EnableUIElements(Transform parentTransform)
+    {
+        foreach (Transform child in parentTransform)
+        {
+            child.gameObject.SetActive(true);
+        }
+    }
+}
