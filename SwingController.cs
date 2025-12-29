@@ -20,7 +20,7 @@ public class SwingController : MonoBehaviour
     [Header("Tuning")]
     public float tweakFactor = 1f;      // for slider value
     public float deviationDeg = 8f;      // how close to vertical to count as "bottom" (= 0)
-    public float minAngularVelocity = 0f;// require some motion to push
+    public float minAngularVelocity = 0f;
     public float pushDuration = 0.06f;     // apply force over this many fixed updates
     public float cooldown = 0.15f;      // min time between pushes
     public float maxAngularVelocity = 50f;
@@ -44,11 +44,12 @@ public class SwingController : MonoBehaviour
         if (hinge == null) hinge = GetComponent<HingeJoint>();
 
         if (slider != null)
-            slider.onValueChanged.AddListener((v) => { 
-                sliderText.text = v.ToString("0") + " N"; 
+            slider.onValueChanged.AddListener((v) =>
+            {
+                sliderText.text = v.ToString("0") + " N";
                 StartCoroutine(CheckForces());
                 otherSwing.StartCoroutine(otherSwing.CheckForces());
-                });
+            });
 
         prevAngle = hinge.angle;
 
@@ -107,22 +108,38 @@ public class SwingController : MonoBehaviour
 
         prevAngle = angle;
 
+        // sync with the other swing if assigned
         if (otherSwing != null && slider.value != 0)
         {
-            // only run sync if this swing is lighter and slider is double the other
-            bool isLightDouble = (m < otherSwing.m) && (slider != null && otherSwing.slider != null) && Mathf.Approximately(slider.value, otherSwing.slider.value * 2f);
-
-            if (isLightDouble)
+            // run sync only if this swing is heavier and slider is double the lighter one
+            bool isHeavyDouble = (m > otherSwing.m) && (slider != null && otherSwing.slider != null)
+                                 && Mathf.Approximately(slider.value, otherSwing.slider.value * 2f);
+            if (isHeavyDouble)
             {
+                // Velocity error
                 float velError = angVel - otherSwing.angVel;
 
-                float correctiveGain = 0.05f; // smooth factor
-                float correctiveTorque = velError * m * (L * L) * correctiveGain;
+                // 🆕 POSITION ERROR - how far apart are their angles?
+                float angleError = hinge.angle - otherSwing.hinge.angle;
+
+                // Combined correction (velocity + position)
+                float correctiveGain = 0.2f;
+                float positionGain = 0.2f; // 🆕 tune this!
+
+                float correctiveTorque = (velError * correctiveGain + angleError * positionGain)
+                                         * otherSwing.m * (L * L);
 
                 Vector3 otherHingeAxis = otherSwing.hinge.transform.TransformDirection(otherSwing.hinge.axis);
                 otherSwing.rb.AddTorque(otherHingeAxis * correctiveTorque, ForceMode.Force);
 
-                isVelocitySynced = Mathf.Abs(velError) < 1f;
+                // Consider synced when BOTH velocity and angle are close
+                bool velocityClose = Mathf.Abs(velError) < 1f;
+                bool angleClose = Mathf.Abs(angleError) < 5f; // 🆕 within 5 degrees
+                isVelocitySynced = velocityClose && angleClose;
+            }
+            else
+            {
+                isVelocitySynced = false;
             }
         }
         else
@@ -139,7 +156,7 @@ public class SwingController : MonoBehaviour
 
     IEnumerator CheckForces()
     {
-        if (otherSwing.m > m)
+        if (otherSwing.m < m)
         {
             if (Mathf.Approximately(slider.value, otherSwing.slider.value * 2))
             {
